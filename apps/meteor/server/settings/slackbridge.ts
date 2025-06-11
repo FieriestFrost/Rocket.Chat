@@ -151,6 +151,14 @@ export const createSlackBridgeSettings = () =>
 			i18nDescription: 'Alias_Format_Description',
 		});
 
+		await this.add('SlackBridge_HostingFiles_Enabled', false, {
+			type: 'boolean',
+			enableQuery: {
+				_id: 'SlackBridge_Enabled',
+				value: true,
+			},
+		});
+
 		await this.add('SlackBridge_ExcludeBotnames', '', {
 			type: 'string',
 			enableQuery: {

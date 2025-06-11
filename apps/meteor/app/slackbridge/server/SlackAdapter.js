@@ -2,7 +2,7 @@ import http from 'http';
 import https from 'https';
 import url from 'url';
 
-import { Message } from '@rocket.chat/core-services';
+import { Message, Upload } from '@rocket.chat/core-services';
 import { Messages, Rooms, Users, ReadReceipts } from '@rocket.chat/models';
 import { App as SlackApp } from '@slack/bolt';
 import { RTMClient } from '@slack/rtm-api';
@@ -919,30 +919,75 @@ export default class SlackAdapter {
 		if (!settings.get('SlackBridge_FileUpload_Enabled')) {
 			return;
 		}
-		const file = slackMessage.files[0];
-
-		if (file && file.url_private_download !== undefined) {
+		if (!this.slackBridge.isHostingFilesEnabled) {
+			const uploadedFileUrls = [];
 			const rocketChannel = await this.rocket.getChannel(slackMessage);
 			const rocketUser = await this.rocket.getUser(slackMessage.user);
+			for (const file of slackMessage.files) {
+				if (file && file.url_private_download !== undefined) {
+					const slackFileStream = await fetch(file.url_private_download, {
+						headers: {
+							Authorization: `Bearer ${this.appCredential.botToken}`,
+						},
+					});
 
-			// Hack to notify that a file was attempted to be uploaded
-			delete slackMessage.subtype;
+					const arrayBuffer = await slackFileStream.arrayBuffer();
+					const buffer = Buffer.from(arrayBuffer);
 
-			// If the text includes the file link, simply use the same text for the rocket message.
-			// If the link was not included, then use it instead of the message.
-
-			if (slackMessage.text.indexOf(file.permalink) < 0) {
-				slackMessage.text = file.permalink;
+					const uploadedFile = await Upload.uploadFile({
+						userId: rocketUser._id,
+						buffer,
+						details: {
+							name: file.name,
+							type: file.mimetype || 'application/octet-stream',
+							rid: rocketChannel._id,
+							userId: rocketUser._id,
+							size: buffer.length,
+						},
+					});
+					const formatedUrl = uploadedFile.url.replace(`/ufs/${uploadedFile.store}/`, '/file-upload/');
+					uploadedFileUrls.push(formatedUrl);
+				}
 			}
+			if (uploadedFileUrls.length > 0) {
+				delete slackMessage.subtype;
+				slackMessage.text = uploadedFileUrls.join('\n');
 
-			const ts = new Date(parseInt(slackMessage.ts.split('.')[0]) * 1000);
-			const msgDataDefaults = {
-				_id: this.rocket.createRocketID(slackMessage.channel, slackMessage.ts),
-				ts,
-				updatedBySlack: true,
-			};
+				const ts = new Date(parseInt(slackMessage.ts.split('.')[0]) * 1000);
+				const msgDataDefaults = {
+					_id: this.rocket.createRocketID(slackMessage.channel, slackMessage.ts),
+					ts,
+					updatedBySlack: true,
+				};
 
-			await this.rocket.createAndSaveMessage(rocketChannel, rocketUser, slackMessage, msgDataDefaults, false);
+				await this.rocket.createAndSaveMessage(rocketChannel, rocketUser, slackMessage, msgDataDefaults, false);
+			}
+		} else {
+			const file = slackMessage.files[0];
+
+			if (file && file.url_private_download !== undefined) {
+				const rocketChannel = await this.rocket.getChannel(slackMessage);
+				const rocketUser = await this.rocket.getUser(slackMessage.user);
+
+				// Hack to notify that a file was attempted to be uploaded
+				delete slackMessage.subtype;
+
+				// If the text includes the file link, simply use the same text for the rocket message.
+				// If the link was not included, then use it instead of the message.
+
+				if (slackMessage.text.indexOf(file.permalink) < 0) {
+					slackMessage.text = file.permalink;
+				}
+
+				const ts = new Date(parseInt(slackMessage.ts.split('.')[0]) * 1000);
+				const msgDataDefaults = {
+					_id: this.rocket.createRocketID(slackMessage.channel, slackMessage.ts),
+					ts,
+					updatedBySlack: true,
+				};
+
+				await this.rocket.createAndSaveMessage(rocketChannel, rocketUser, slackMessage, msgDataDefaults, false);
+			}
 		}
 	}
 

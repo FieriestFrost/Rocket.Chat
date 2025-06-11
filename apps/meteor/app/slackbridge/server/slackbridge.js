@@ -27,6 +27,7 @@ class SlackBridgeClass {
 		this.aliasFormat = '';
 		this.excludeBotnames = '';
 		this.isReactionsEnabled = true;
+		this.isHostingFilesEnabled = false;
 
 		this.processSettings();
 	}
@@ -162,6 +163,12 @@ class SlackBridgeClass {
 		settings.watch('SlackBridge_AliasFormat', (value) => {
 			this.aliasFormat = value;
 			classLogger.debug('Setting: SlackBridge_AliasFormat', value);
+		});
+
+		// Hosting file from Slack in case public url of Slack file in unavailable
+		settings.watch('SlackBridge_HostingFiles_Enabled', (value) => {
+			this.isHostingFilesEnabled = value;
+			classLogger.debug('Setting: SlackBridge_HostingFiles_Enabled', value);
 		});
 
 		// Do not propagate messages from bots whose name matches the regular expression above. If left empty, all messages from bots will be propagated.
