@@ -288,6 +288,7 @@ export type TypedThis<TOptions extends TypedOptions, TPath extends string = ''> 
 	token: TOptions['authRequired'] extends true ? string : string | undefined;
 	queryParams: TOptions['query'] extends ValidateFunction<infer Query> ? Query : never;
 	urlParams: UrlParams<TPath> extends Record<any, any> ? UrlParams<TPath> : never;
+	response: Response;
 	parseJsonQuery(): Promise<{
 		sort: Record<string, 1 | -1>;
 		/**
