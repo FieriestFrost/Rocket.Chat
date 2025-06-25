@@ -919,7 +919,7 @@ export default class SlackAdapter {
 		if (!settings.get('SlackBridge_FileUpload_Enabled')) {
 			return;
 		}
-		if (this.slackBridge.isHostingFilesEnabled) {
+		if (settings.get('SlackBridge_HostingFiles_Enabled')) {
 			const uploadedFileUrls = [];
 			const rocketChannel = await this.rocket.getChannel(slackMessage);
 			const rocketUser = await this.rocket.getUser(slackMessage.user);
